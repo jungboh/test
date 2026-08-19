@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>설문 진행 - 설문 링크 허브</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="icon-btn" href="index.html" aria-label="뒤로">←</a>
+      <h1>설문 진행</h1>
+      <a class="icon-btn" href="index.html" aria-label="처음으로">🏠</a>
+    </div>
+
+    <div class="card">
+      <h2>참여 가능한 설문 목록</h2>
+      <p class="card-sub">다른 친구들이 등록한 설문에 참여해보세요!</p>
+
+      <div class="survey-list" id="surveyList"></div>
+      <div class="empty-state" id="emptyState" style="display:none;">아직 등록된 설문이 없습니다.</div>
+    </div>
+
+    <div class="info-box purple">
+      <span class="info-icon">ℹ️</span>
+      <div>
+        <b>설문 참여 시 주의사항</b>
+        모든 설문은 익명으로 참여되며, 중복 참여는 자제해 주세요.
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./assets/supabase-config.js";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const listEl = document.getElementById("surveyList");
+    const emptyEl = document.getElementById("emptyState");
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+    }
+
+    async function load() {
+      const { data, error } = await supabase
+        .from("public_survey_links")
+        .select("id, survey_title, link, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        emptyEl.style.display = "block";
+        if (error) emptyEl.textContent = "설문 목록을 불러오지 못했습니다.";
+        return;
+      }
+
+      emptyEl.style.display = "none";
+      listEl.innerHTML = "";
+      data.forEach((row) => {
+        const el = document.createElement("div");
+        el.className = "survey-row";
+        el.innerHTML = `
+          <span class="survey-row-icon">📄</span>
+          <span class="survey-row-body">
+            <span class="survey-row-title">${escapeHtml(row.survey_title)}</span>
+            <span class="survey-row-meta">등록일: ${formatDate(row.created_at)}</span>
+          </span>
+          <a class="pill-btn purple" href="${escapeHtml(row.link)}" target="_blank" rel="noopener noreferrer" data-id="${row.id}">참여하기</a>
+        `;
+        el.querySelector("a").addEventListener("click", () => {
+          supabase.rpc("increment_survey_click", { p_id: row.id });
+        });
+        listEl.appendChild(el);
+      });
+    }
+
+    load();
+  </script>
+</body>
+</html>
