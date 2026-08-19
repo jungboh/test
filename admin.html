@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>관리자 - 설문 링크 허브</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="icon-btn" href="index.html" aria-label="뒤로">←</a>
+      <h1>관리자</h1>
+      <a class="icon-btn" href="index.html" aria-label="처음으로">🏠</a>
+    </div>
+
+    <div class="card admin-login" id="loginCard">
+      <h2>관리자 로그인</h2>
+      <p class="card-sub">비밀번호를 입력해 주세요.</p>
+      <form id="loginForm">
+        <div class="field">
+          <label for="pwInput">비밀번호</label>
+          <input type="password" id="pwInput" required />
+        </div>
+        <button class="submit-btn" type="submit">로그인</button>
+      </form>
+      <p class="msg" id="loginMsg"></p>
+    </div>
+
+    <div id="dashboard" style="display:none;">
+      <div class="card">
+        <h2>반별 등록 현황</h2>
+        <p class="card-sub">학급별로 설문 링크를 등록한 학생 수입니다.</p>
+        <div class="class-summary" id="classSummary"></div>
+      </div>
+
+      <div class="card">
+        <h2>전체 등록 목록 <span class="badge-count" id="totalBadge">0건</span></h2>
+        <p class="card-sub">각 설문의 참여 인원(참여하기 클릭 수)을 확인할 수 있습니다.</p>
+        <div class="table-scroll">
+          <table class="admin-table" id="entryTable">
+            <thead>
+              <tr>
+                <th>학년</th><th>반</th><th>번호</th><th>이름</th>
+                <th>설문 제목</th><th>링크</th><th>참여 인원</th><th>등록일</th>
+              </tr>
+            </thead>
+            <tbody id="entryBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-link">
+      <a href="index.html">← 처음으로</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./assets/supabase-config.js";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const loginForm = document.getElementById("loginForm");
+    const loginMsg = document.getElementById("loginMsg");
+    const loginCard = document.getElementById("loginCard");
+    const dashboard = document.getElementById("dashboard");
+    const classSummary = document.getElementById("classSummary");
+    const entryBody = document.getElementById("entryBody");
+    const totalBadge = document.getElementById("totalBadge");
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+    }
+
+    function render(rows) {
+      const groups = new Map();
+      rows.forEach((r) => {
+        const key = `${r.grade}학년 ${r.class_name}반`;
+        groups.set(key, (groups.get(key) || 0) + 1);
+      });
+
+      classSummary.innerHTML = "";
+      [...groups.entries()].forEach(([label, count]) => {
+        const chip = document.createElement("div");
+        chip.className = "class-chip";
+        chip.innerHTML = `<div class="n">${count}명</div><div class="l">${escapeHtml(label)}</div>`;
+        classSummary.appendChild(chip);
+      });
+      if (groups.size === 0) {
+        classSummary.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">등록된 학급이 없습니다.</div>`;
+      }
+
+      totalBadge.textContent = `${rows.length}건`;
+      entryBody.innerHTML = "";
+      rows.forEach((r) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(r.grade)}</td>
+          <td>${escapeHtml(r.class_name)}</td>
+          <td>${escapeHtml(r.student_number)}</td>
+          <td>${escapeHtml(r.student_name)}</td>
+          <td>${escapeHtml(r.survey_title)}</td>
+          <td><a href="${escapeHtml(r.link)}" target="_blank" rel="noopener noreferrer">바로가기</a></td>
+          <td>${r.click_count}</td>
+          <td>${formatDate(r.created_at)}</td>
+        `;
+        entryBody.appendChild(tr);
+      });
+    }
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginMsg.textContent = "";
+      loginMsg.className = "msg";
+
+      const password = document.getElementById("pwInput").value;
+      const { data, error } = await supabase.rpc("admin_dashboard", { p_password: password });
+
+      if (error) {
+        loginMsg.textContent = "비밀번호가 올바르지 않습니다.";
+        loginMsg.classList.add("error");
+        return;
+      }
+
+      loginCard.style.display = "none";
+      dashboard.style.display = "block";
+      render(data || []);
+    });
+  </script>
+</body>
+</html>
