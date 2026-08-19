@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>링크 입력 - 설문 링크 허브</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="icon-btn" href="index.html" aria-label="뒤로">←</a>
+      <h1>링크 입력</h1>
+      <a class="icon-btn" href="index.html" aria-label="처음으로">🏠</a>
+    </div>
+
+    <div class="card">
+      <h2>설문 링크 등록</h2>
+      <p class="card-sub">아래 정보를 입력하고 저장하면, 나만의 설문 링크가 등록됩니다.</p>
+
+      <form id="linkForm">
+        <div class="field-row">
+          <div class="field">
+            <label for="gradeInput">학년</label>
+            <select id="gradeInput" required>
+              <option value="" disabled selected>학년 선택</option>
+              <option>1</option>
+              <option>2</option>
+              <option>3</option>
+              <option>4</option>
+              <option>5</option>
+              <option>6</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="classInput">반</label>
+            <select id="classInput" required>
+              <option value="" disabled selected>반 선택</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option>
+              <option>5</option><option>6</option><option>7</option><option>8</option>
+              <option>9</option><option>10</option><option>11</option><option>12</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="numberInput">번호</label>
+          <input type="text" id="numberInput" placeholder="번호 입력 예: 1, 2, 3..." required inputmode="numeric" />
+        </div>
+
+        <div class="field">
+          <label for="nameInput">이름</label>
+          <input type="text" id="nameInput" placeholder="이름 입력" required />
+          <div class="field-hint">실명이 아니어도 좋아요!</div>
+        </div>
+
+        <div class="field">
+          <label for="titleInput">설문 제목</label>
+          <input type="text" id="titleInput" placeholder="예: 학교 급식 만족도 조사" required />
+        </div>
+
+        <div class="field">
+          <label for="linkInput">설문 링크</label>
+          <input type="url" id="linkInput" placeholder="https://example.com/survey" required />
+          <div class="field-hint">Google Forms, 네이버 폼, 기타 설문 링크를 입력하세요.</div>
+        </div>
+
+        <button class="submit-btn" type="submit" id="submitBtn">💾 저장하기</button>
+      </form>
+      <p class="msg" id="msg"></p>
+    </div>
+
+    <div class="info-box">
+      <span class="info-icon">🛡️</span>
+      <div>
+        <b>내 정보는 나만 볼 수 있어요!</b>
+        입력한 학년, 반, 번호, 이름은 다른 친구들에게 공개되지 않아요.
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./assets/supabase-config.js";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById("linkForm");
+    const msg = document.getElementById("msg");
+    const submitBtn = document.getElementById("submitBtn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "";
+      msg.className = "msg";
+
+      const grade = document.getElementById("gradeInput").value;
+      const class_name = document.getElementById("classInput").value;
+      const student_number = document.getElementById("numberInput").value.trim();
+      const student_name = document.getElementById("nameInput").value.trim();
+      const survey_title = document.getElementById("titleInput").value.trim();
+      const link = document.getElementById("linkInput").value.trim();
+
+      if (!grade || !class_name || !student_number || !student_name || !survey_title || !link) return;
+      if (!/^https?:\/\//i.test(link)) {
+        msg.textContent = "설문 링크는 http:// 또는 https:// 로 시작해야 합니다.";
+        msg.classList.add("error");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "등록 중...";
+
+      const { error } = await supabase
+        .from("survey_links")
+        .insert([{ grade, class_name, student_number, student_name, survey_title, link }]);
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = "💾 저장하기";
+
+      if (error) {
+        msg.textContent = "등록에 실패했습니다: " + error.message;
+        msg.classList.add("error");
+        return;
+      }
+
+      msg.textContent = "설문 링크가 등록되었습니다! 감사합니다.";
+      msg.classList.add("success");
+      form.reset();
+    });
+  </script>
+</body>
+</html>
