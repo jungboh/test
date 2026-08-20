@@ -419,12 +419,37 @@ body {
   white-space: nowrap;
 }
 
-.survey-row .pill-btn {
+.survey-row .pill-btn,
+.survey-complete-btn,
+.student-change-btn,
+.survey-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
   margin-top: 0;
-  color: var(--purple-dark);
-  background: #faf7ff;
-  border: 1px solid #e5d9f8;
   padding: 8px 14px;
+  border: 1px solid;
+  border-radius: 8px;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.survey-row .pill-btn {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.survey-row .pill-btn:hover {
+  border-color: #93c5fd;
+  background: #dbeafe;
 }
 
 .survey-row-meta {
@@ -454,15 +479,14 @@ body {
 
 .student-change-btn {
   flex: none;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--muted);
-  padding: 7px 10px;
-  font: inherit;
-  font-size: .75rem;
-  font-weight: 700;
-  cursor: pointer;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.student-change-btn:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
 }
 
 .survey-progress-count {
@@ -495,21 +519,35 @@ body {
 }
 
 .survey-filter {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: #fff;
-  color: var(--muted);
-  padding: 7px 13px;
-  font: inherit;
-  font-size: .78rem;
-  font-weight: 700;
-  cursor: pointer;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.survey-filter[data-filter="all"] {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.survey-filter[data-filter="pending"] {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+  color: #0369a1;
+}
+
+.survey-filter[data-filter="completed"] {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
 }
 
 .survey-filter.active {
-  border-color: var(--purple);
-  background: #f5f3ff;
-  color: var(--purple-dark);
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.survey-filter:hover {
+  filter: brightness(.97);
 }
 
 .survey-row-actions {
@@ -520,15 +558,14 @@ body {
 }
 
 .survey-complete-btn {
-  border: 1px solid #bbf7d0;
-  border-radius: 8px;
-  background: #f0fdf4;
-  color: #15803d;
-  padding: 8px 11px;
-  font: inherit;
-  font-size: .8rem;
-  font-weight: 700;
-  cursor: pointer;
+  border-color: #7dd3fc;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.survey-complete-btn:hover {
+  border-color: #38bdf8;
+  background: #bae6fd;
 }
 
 .survey-complete-btn:disabled {
