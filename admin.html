@@ -69,6 +69,12 @@
     const classSummary = document.getElementById("classSummary");
     const entryBody = document.getElementById("entryBody");
     const totalBadge = document.getElementById("totalBadge");
+    const ADMIN_PASSWORD_KEY = "samu_admin_password";
+    const REFRESH_INTERVAL_MS = 5000;
+
+    let adminPassword = "";
+    let refreshTimer = null;
+    let isRefreshing = false;
 
     function escapeHtml(str) {
       return String(str).replace(/[&<>"']/g, (c) => ({
@@ -117,24 +123,73 @@
       });
     }
 
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      loginMsg.textContent = "";
-      loginMsg.className = "msg";
+    async function refreshDashboard({ showLoginError = false } = {}) {
+      if (!adminPassword || isRefreshing) return false;
 
-      const password = document.getElementById("pwInput").value;
-      const { data, error } = await supabase.rpc("admin_dashboard", { p_password: password });
+      isRefreshing = true;
+      const { data, error } = await supabase.rpc("admin_dashboard", {
+        p_password: adminPassword,
+      });
+      isRefreshing = false;
 
       if (error) {
-        loginMsg.textContent = "비밀번호가 올바르지 않습니다.";
-        loginMsg.classList.add("error");
-        return;
+        if (showLoginError) {
+          loginMsg.textContent = "비밀번호가 올바르지 않습니다.";
+          loginMsg.classList.add("error");
+        }
+        return false;
       }
 
       loginCard.style.display = "none";
       dashboard.style.display = "block";
       render(data || []);
+      return true;
+    }
+
+    function startAutoRefresh() {
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(() => {
+        if (!document.hidden) refreshDashboard();
+      }, REFRESH_INTERVAL_MS);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && adminPassword) refreshDashboard();
     });
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginMsg.textContent = "";
+      loginMsg.className = "msg";
+
+      adminPassword = document.getElementById("pwInput").value;
+      const authenticated = await refreshDashboard({ showLoginError: true });
+
+      if (!authenticated) {
+        adminPassword = "";
+        sessionStorage.removeItem(ADMIN_PASSWORD_KEY);
+        return;
+      }
+
+      sessionStorage.setItem(ADMIN_PASSWORD_KEY, adminPassword);
+      startAutoRefresh();
+    });
+
+    async function restoreAdminSession() {
+      const savedPassword = sessionStorage.getItem(ADMIN_PASSWORD_KEY);
+      if (!savedPassword) return;
+
+      adminPassword = savedPassword;
+      const authenticated = await refreshDashboard();
+      if (authenticated) {
+        startAutoRefresh();
+      } else {
+        adminPassword = "";
+        sessionStorage.removeItem(ADMIN_PASSWORD_KEY);
+      }
+    }
+
+    restoreAdminSession();
   </script>
 </body>
 </html>
