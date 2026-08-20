@@ -42,7 +42,7 @@
             <thead>
               <tr>
                 <th>학년</th><th>반</th><th>번호</th><th>이름</th>
-                <th>설문 제목</th><th>링크</th><th>참여 인원</th><th>등록일</th>
+                <th>설문 제목</th><th>링크</th><th>참여 인원</th><th>등록일</th><th>관리</th>
               </tr>
             </thead>
             <tbody id="entryBody"></tbody>
@@ -75,6 +75,8 @@
     let adminPassword = "";
     let refreshTimer = null;
     let isRefreshing = false;
+    let allRows = [];
+    let selectedClassKey = "";
 
     function escapeHtml(str) {
       return String(str).replace(/[&<>"']/g, (c) => ({
@@ -87,27 +89,67 @@
       return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
     }
 
+    function rowClassKey(row) {
+      return `${row.grade}|${row.class_name}`;
+    }
+
+    function sortRows(rows) {
+      return [...rows].sort((a, b) =>
+        String(a.grade).localeCompare(String(b.grade), "ko", { numeric: true }) ||
+        String(a.class_name).localeCompare(String(b.class_name), "ko", { numeric: true }) ||
+        String(a.student_number).localeCompare(String(b.student_number), "ko", { numeric: true })
+      );
+    }
+
     function render(rows) {
+      allRows = sortRows(rows);
       const groups = new Map();
-      rows.forEach((r) => {
-        const key = `${r.grade}학년 ${r.class_name}반`;
-        groups.set(key, (groups.get(key) || 0) + 1);
+      allRows.forEach((r) => {
+        const key = rowClassKey(r);
+        if (!groups.has(key)) {
+          groups.set(key, {
+            label: `${r.grade}학년 ${r.class_name}반`,
+            count: 0,
+          });
+        }
+        groups.get(key).count += 1;
       });
 
+      if (selectedClassKey && !groups.has(selectedClassKey)) selectedClassKey = "";
+
       classSummary.innerHTML = "";
-      [...groups.entries()].forEach(([label, count]) => {
-        const chip = document.createElement("div");
-        chip.className = "class-chip";
-        chip.innerHTML = `<div class="n">${count}명</div><div class="l">${escapeHtml(label)}</div>`;
+      if (groups.size > 0) {
+        const allChip = document.createElement("button");
+        allChip.type = "button";
+        allChip.className = `class-chip${selectedClassKey ? "" : " active"}`;
+        allChip.dataset.classKey = "";
+        allChip.setAttribute("aria-pressed", String(!selectedClassKey));
+        allChip.innerHTML = `<div class="n">${allRows.length}명</div><div class="l">전체 보기</div>`;
+        classSummary.appendChild(allChip);
+      }
+
+      [...groups.entries()].forEach(([key, group]) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = `class-chip${selectedClassKey === key ? " active" : ""}`;
+        chip.dataset.classKey = key;
+        chip.setAttribute("aria-pressed", String(selectedClassKey === key));
+        chip.innerHTML = `<div class="n">${group.count}명</div><div class="l">${escapeHtml(group.label)}</div>`;
         classSummary.appendChild(chip);
       });
       if (groups.size === 0) {
         classSummary.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">등록된 학급이 없습니다.</div>`;
       }
 
-      totalBadge.textContent = `${rows.length}건`;
+      const visibleRows = selectedClassKey
+        ? allRows.filter((row) => rowClassKey(row) === selectedClassKey)
+        : allRows;
+
+      totalBadge.textContent = selectedClassKey
+        ? `${visibleRows.length}건 / 전체 ${allRows.length}건`
+        : `${visibleRows.length}건`;
       entryBody.innerHTML = "";
-      rows.forEach((r) => {
+      visibleRows.forEach((r) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${escapeHtml(r.grade)}</td>
@@ -118,10 +160,49 @@
           <td><a href="${escapeHtml(r.link)}" target="_blank" rel="noopener noreferrer">바로가기</a></td>
           <td>${r.click_count}</td>
           <td>${formatDate(r.created_at)}</td>
+          <td><button type="button" class="delete-entry-btn" data-entry-id="${r.id}">삭제</button></td>
         `;
         entryBody.appendChild(tr);
       });
     }
+
+    classSummary.addEventListener("click", (event) => {
+      const chip = event.target.closest(".class-chip");
+      if (!chip) return;
+
+      const nextKey = chip.dataset.classKey || "";
+      selectedClassKey = selectedClassKey === nextKey ? "" : nextKey;
+      render(allRows);
+    });
+
+    entryBody.addEventListener("click", async (event) => {
+      const button = event.target.closest(".delete-entry-btn");
+      if (!button) return;
+
+      const row = allRows.find((item) => String(item.id) === button.dataset.entryId);
+      if (!row) return;
+
+      const confirmed = window.confirm(
+        `${row.grade}학년 ${row.class_name}반 ${row.student_number}번 ${row.student_name} 학생의 설문을 삭제할까요?\n삭제한 데이터는 복구할 수 없습니다.`
+      );
+      if (!confirmed) return;
+
+      button.disabled = true;
+      button.textContent = "삭제 중";
+      const { data, error } = await supabase.rpc("delete_survey_link", {
+        p_id: row.id,
+        p_password: adminPassword,
+      });
+
+      if (error || data !== true) {
+        window.alert("삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        button.disabled = false;
+        button.textContent = "삭제";
+        return;
+      }
+
+      await refreshDashboard();
+    });
 
     async function refreshDashboard({ showLoginError = false } = {}) {
       if (!adminPassword || isRefreshing) return false;
