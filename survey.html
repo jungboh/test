@@ -14,19 +14,71 @@
       <a class="icon-btn" href="index.html" aria-label="처음으로">🏠</a>
     </div>
 
-    <div class="card">
-      <h2>참여 가능한 설문 목록</h2>
-      <p class="card-sub">다른 친구들이 등록한 설문에 참여해보세요!</p>
-
-      <div class="survey-list" id="surveyList"></div>
-      <div class="empty-state" id="emptyState" style="display:none;">아직 등록된 설문이 없습니다.</div>
+    <div class="card survey-identity-card" id="identityCard">
+      <h2>학생 정보 확인</h2>
+      <p class="card-sub">참여 현황을 저장하기 위해 본인의 정보를 입력해 주세요.</p>
+      <form id="identityForm">
+        <div class="survey-identity-grid">
+          <div class="field">
+            <label for="gradeInput">학년</label>
+            <select id="gradeInput" required>
+              <option value="" disabled selected>학년 선택</option>
+              <option>1</option><option>2</option><option>3</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="classInput">반</label>
+            <select id="classInput" required>
+              <option value="" disabled selected>반 선택</option>
+              <option>금융</option><option>창업</option><option>유통</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="numberInput">번호</label>
+            <input type="text" id="numberInput" inputmode="numeric" placeholder="예: 1" required />
+          </div>
+          <div class="field">
+            <label for="nameInput">이름</label>
+            <input type="text" id="nameInput" placeholder="이름 입력" required />
+          </div>
+        </div>
+        <button class="submit-btn" type="submit">참여 현황 확인하기</button>
+      </form>
+      <p class="msg" id="identityMsg"></p>
     </div>
 
-    <div class="info-box purple">
-      <span class="info-icon">ℹ️</span>
-      <div>
-        <b>설문 참여 시 주의사항</b>
-        모든 설문은 익명으로 참여되며, 중복 참여는 자제해 주세요.
+    <div id="surveyDashboard" style="display:none;">
+      <div class="card survey-progress-card">
+        <div class="survey-student-head">
+          <div>
+            <h2 id="studentLabel">나의 참여 현황</h2>
+            <p class="card-sub">설문 참여 상태는 자동으로 저장됩니다.</p>
+          </div>
+          <button class="student-change-btn" type="button" id="changeStudentBtn">학생 정보 변경</button>
+        </div>
+        <div class="survey-progress-count" id="progressCount">전체 0개 · 완료 0개 · 미참여 0개</div>
+        <div class="survey-progress-track" aria-hidden="true"><span id="progressBar"></span></div>
+        <div class="survey-filters" id="surveyFilters" aria-label="설문 참여 상태 필터">
+          <button type="button" class="survey-filter active" data-filter="all">전체</button>
+          <button type="button" class="survey-filter" data-filter="pending">미참여</button>
+          <button type="button" class="survey-filter" data-filter="completed">참여 완료</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>참여 가능한 설문 목록</h2>
+        <p class="card-sub">설문을 연 뒤 이 페이지로 돌아와 ‘참여 완료’를 눌러 주세요.</p>
+
+        <div class="survey-list" id="surveyList"></div>
+        <div class="empty-state" id="emptyState" style="display:none;">아직 등록된 설문이 없습니다.</div>
+      </div>
+
+      <div class="info-box purple">
+        <span class="info-icon">ℹ️</span>
+        <div>
+          <b>참여 상태 안내</b>
+          설문 링크를 열면 ‘참여 중’, 완료 버튼을 누르면 ‘참여 완료’로 표시됩니다. 설문 응답 자체는 익명으로 유지됩니다.
+        </div>
       </div>
     </div>
   </div>
@@ -37,8 +89,24 @@
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    const STUDENT_STORAGE_KEY = "samu_survey_student";
+
+    const identityCard = document.getElementById("identityCard");
+    const identityForm = document.getElementById("identityForm");
+    const identityMsg = document.getElementById("identityMsg");
+    const dashboard = document.getElementById("surveyDashboard");
+    const studentLabel = document.getElementById("studentLabel");
+    const changeStudentBtn = document.getElementById("changeStudentBtn");
+    const progressCount = document.getElementById("progressCount");
+    const progressBar = document.getElementById("progressBar");
+    const filtersEl = document.getElementById("surveyFilters");
     const listEl = document.getElementById("surveyList");
     const emptyEl = document.getElementById("emptyState");
+
+    let student = null;
+    let surveys = [];
+    let participation = new Map();
+    let activeFilter = "all";
 
     function formatDate(iso) {
       const d = new Date(iso);
@@ -51,39 +119,163 @@
       }[c]));
     }
 
-    async function load() {
-      const { data, error } = await supabase
-        .from("public_survey_links")
-        .select("id, survey_title, link, created_at")
-        .order("created_at", { ascending: false });
+    function studentParams() {
+      return {
+        p_grade: student.grade,
+        p_class_name: student.className,
+        p_student_number: student.number,
+        p_student_name: student.name,
+      };
+    }
 
-      if (error || !data || data.length === 0) {
-        emptyEl.style.display = "block";
-        if (error) emptyEl.textContent = "설문 목록을 불러오지 못했습니다.";
-        return;
+    function renderProgress() {
+      const completed = surveys.filter((row) => participation.get(row.id) === "completed").length;
+      const pending = surveys.length - completed;
+      const percent = surveys.length ? Math.round((completed / surveys.length) * 100) : 0;
+      progressCount.textContent = `전체 ${surveys.length}개 · 완료 ${completed}개 · 미참여 ${pending}개`;
+      progressBar.style.width = `${percent}%`;
+    }
+
+    function filteredSurveys() {
+      if (activeFilter === "completed") {
+        return surveys.filter((row) => participation.get(row.id) === "completed");
       }
+      if (activeFilter === "pending") {
+        return surveys.filter((row) => participation.get(row.id) !== "completed");
+      }
+      return surveys;
+    }
 
-      emptyEl.style.display = "none";
+    function renderList() {
+      renderProgress();
+      const visibleSurveys = filteredSurveys();
       listEl.innerHTML = "";
-      data.forEach((row) => {
+      emptyEl.style.display = visibleSurveys.length ? "none" : "block";
+      emptyEl.textContent = surveys.length
+        ? "이 조건에 해당하는 설문이 없습니다."
+        : "아직 등록된 설문이 없습니다.";
+
+      visibleSurveys.forEach((row) => {
+        const status = participation.get(row.id) || "pending";
+        const statusLabel = status === "completed" ? "참여 완료" : status === "started" ? "참여 중" : "미참여";
         const el = document.createElement("div");
-        el.className = "survey-row";
+        el.className = `survey-row status-${status}`;
         el.innerHTML = `
           <span class="survey-row-icon">📄</span>
           <span class="survey-row-body">
             <span class="survey-row-title">${escapeHtml(row.survey_title)}</span>
-            <span class="survey-row-meta">등록일: ${formatDate(row.created_at)}</span>
+            <span class="survey-row-meta"><span class="survey-status status-${status}">${statusLabel}</span> · 등록일 ${formatDate(row.created_at)}</span>
           </span>
-          <a class="pill-btn purple" href="${escapeHtml(row.link)}" target="_blank" rel="noopener noreferrer" data-id="${row.id}">참여하기</a>
+          <span class="survey-row-actions">
+            <a class="pill-btn purple survey-open-btn" href="${escapeHtml(row.link)}" target="_blank" rel="noopener noreferrer" data-id="${row.id}">${status === "completed" ? "다시 열기" : "참여하기"}</a>
+            ${status === "completed" ? "" : `<button type="button" class="survey-complete-btn" data-id="${row.id}">참여 완료</button>`}
+          </span>
         `;
-        el.querySelector("a").addEventListener("click", () => {
+        el.querySelector(".survey-open-btn").addEventListener("click", () => {
           supabase.rpc("increment_survey_click", { p_id: row.id });
+          if (!participation.has(row.id)) saveStatus(row.id, "started");
         });
         listEl.appendChild(el);
       });
     }
 
-    load();
+    async function saveStatus(surveyId, status) {
+      const { error } = await supabase.rpc("save_survey_participation", {
+        ...studentParams(),
+        p_survey_id: surveyId,
+        p_status: status,
+      });
+      if (error) {
+        window.alert("참여 상태를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        return false;
+      }
+      participation.set(surveyId, status);
+      renderList();
+      return true;
+    }
+
+    listEl.addEventListener("click", async (event) => {
+      const button = event.target.closest(".survey-complete-btn");
+      if (!button) return;
+      button.disabled = true;
+      button.textContent = "저장 중";
+      await saveStatus(Number(button.dataset.id), "completed");
+    });
+
+    filtersEl.addEventListener("click", (event) => {
+      const button = event.target.closest(".survey-filter");
+      if (!button) return;
+      activeFilter = button.dataset.filter;
+      filtersEl.querySelectorAll(".survey-filter").forEach((item) => {
+        item.classList.toggle("active", item === button);
+      });
+      renderList();
+    });
+
+    async function loadDashboard() {
+      listEl.innerHTML = `<div class="empty-state">참여 현황을 불러오는 중입니다.</div>`;
+      emptyEl.style.display = "none";
+      const [surveyResult, participationResult] = await Promise.all([
+        supabase
+          .from("public_survey_links")
+          .select("id, survey_title, link, created_at")
+          .order("created_at", { ascending: false }),
+        supabase.rpc("get_survey_participation", studentParams()),
+      ]);
+
+      if (surveyResult.error || participationResult.error) {
+        listEl.innerHTML = "";
+        emptyEl.style.display = "block";
+        emptyEl.textContent = "참여 현황을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+        return;
+      }
+
+      surveys = surveyResult.data || [];
+      participation = new Map(
+        (participationResult.data || []).map((row) => [row.survey_id, row.status])
+      );
+      renderList();
+    }
+
+    async function openDashboard(nextStudent) {
+      student = nextStudent;
+      localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(student));
+      studentLabel.textContent = `${student.grade}학년 ${student.className}반 ${student.number}번 ${student.name}`;
+      identityCard.style.display = "none";
+      dashboard.style.display = "block";
+      await loadDashboard();
+    }
+
+    identityForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      identityMsg.textContent = "";
+      openDashboard({
+        grade: document.getElementById("gradeInput").value,
+        className: document.getElementById("classInput").value,
+        number: document.getElementById("numberInput").value.trim(),
+        name: document.getElementById("nameInput").value.trim(),
+      });
+    });
+
+    changeStudentBtn.addEventListener("click", () => {
+      localStorage.removeItem(STUDENT_STORAGE_KEY);
+      student = null;
+      dashboard.style.display = "none";
+      identityCard.style.display = "block";
+      document.getElementById("gradeInput").focus();
+    });
+
+    function restoreStudent() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STUDENT_STORAGE_KEY));
+        if (!saved?.grade || !saved?.className || !saved?.number || !saved?.name) return;
+        openDashboard(saved);
+      } catch {
+        localStorage.removeItem(STUDENT_STORAGE_KEY);
+      }
+    }
+
+    restoreStudent();
   </script>
 </body>
 </html>
