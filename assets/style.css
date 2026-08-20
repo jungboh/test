@@ -19,6 +19,10 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: 15px;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -70,7 +74,8 @@ body {
 }
 
 .topbar h1 {
-  font-size: 1.08rem;
+  font-size: 1rem;
+  font-weight: 600;
   margin: 0;
 }
 
@@ -122,7 +127,8 @@ body {
 }
 
 .hero-card h1 {
-  font-size: clamp(2rem, 4vw, 2.7rem);
+  font-size: clamp(1.85rem, 4vw, 2.5rem);
+  font-weight: 700;
   margin: 0 0 8px;
 }
 
@@ -182,8 +188,8 @@ body {
 }
 
 .home-btn-title {
-  font-size: 1.35rem;
-  font-weight: 800;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .home-btn.blue .home-btn-title {
@@ -208,8 +214,8 @@ body {
   padding: 10px 20px;
   border-radius: 8px;
   border: none;
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-weight: 600;
+  font-size: 0.85rem;
   color: #fff;
   cursor: pointer;
 }
@@ -253,7 +259,8 @@ body {
 }
 
 .card h2 {
-  font-size: 1.1rem;
+  font-size: 1.03rem;
+  font-weight: 600;
   margin: 0 0 4px;
 }
 
@@ -274,7 +281,7 @@ body {
 .field label {
   display: block;
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text);
   margin-bottom: 6px;
 }
@@ -312,12 +319,12 @@ body {
 .submit-btn {
   width: 100%;
   padding: 14px;
-  font-size: 1rem;
+  font-size: 0.94rem;
   border: none;
   border-radius: 8px;
   background: linear-gradient(135deg, var(--blue), var(--blue-dark));
   color: #fff;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   margin-top: 6px;
 }
@@ -412,8 +419,8 @@ body {
 }
 
 .survey-row-title {
-  font-weight: 700;
-  font-size: 0.98rem;
+  font-weight: 600;
+  font-size: 0.93rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -432,8 +439,8 @@ body {
   border: 1px solid;
   border-radius: 8px;
   font: inherit;
-  font-size: .8rem;
-  font-weight: 700;
+  font-size: .76rem;
+  font-weight: 600;
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
@@ -491,8 +498,8 @@ body {
 
 .survey-progress-count {
   color: var(--text);
-  font-size: .9rem;
-  font-weight: 700;
+  font-size: .85rem;
+  font-weight: 600;
   margin-bottom: 9px;
 }
 
@@ -574,7 +581,7 @@ body {
 }
 
 .survey-status {
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .survey-status.status-pending { color: var(--muted); }
@@ -700,8 +707,8 @@ body {
 }
 
 .class-chip .n {
-  font-weight: 800;
-  font-size: 1.2rem;
+  font-weight: 700;
+  font-size: 1.12rem;
   color: var(--blue);
 }
 
@@ -751,7 +758,7 @@ table.admin-table td {
 table.admin-table th {
   color: var(--muted);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .table-scroll {
@@ -766,7 +773,7 @@ table.admin-table th {
   padding: 6px 10px;
   font: inherit;
   font-size: .78rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -809,7 +816,7 @@ table.admin-table th {
   display: inline-block;
   background: #ede9fe;
   color: var(--purple-dark);
-  font-weight: 700;
+  font-weight: 600;
   padding: 2px 10px;
   border-radius: 999px;
   font-size: 0.78rem;
